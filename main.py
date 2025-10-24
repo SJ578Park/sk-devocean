@@ -92,8 +92,7 @@ class ChillMCPState:
             relief = random.randint(profile.min_relief, profile.max_relief)
             previous_stress = self.stress_level
             self.stress_level = max(0, self.stress_level - relief)
-            # Reset stress growth timer after a break
-            self.last_stress_update = now
+            # Don't reset stress growth timer - let it continue accumulating
 
             boss_alert_triggered = self._maybe_raise_boss_alert(now)
             current_stress = self.stress_level
@@ -140,13 +139,13 @@ class ChillMCPState:
         """Lower boss alert level if enough cooldown time has passed."""
         elapsed = current_time - self.last_boss_cooldown_check
         steps = int(elapsed // self.boss_alertness_cooldown)
-        if steps <= 0:
-            if self.boss_alert_level == 0:
-                self.last_boss_cooldown_check = current_time
-            return 0
-
+        
         if self.boss_alert_level == 0:
+            # If boss alert is already 0, just update the timer
             self.last_boss_cooldown_check = current_time
+            return 0
+            
+        if steps <= 0:
             return 0
 
         previous_level = self.boss_alert_level
@@ -329,7 +328,7 @@ async def email_organizing() -> str:
 
 def main() -> None:
     """Configure logging, initialize state, and start the MCP server."""
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)  # Changed to DEBUG for more detailed logging
     args = parse_args()
 
     global SERVER_STATE
