@@ -82,7 +82,7 @@ class ChillMCPState:
     def __post_init__(self) -> None:
         self._lock = asyncio.Lock()
 
-    async def perform_break(self, profile: ToolProfile) -> str:
+    async def perform_break(self, profile: ToolProfile, tool_name: str) -> str:
         """Execute a break tool with synchronized state updates."""
         async with self._lock:
             now = time.monotonic()
@@ -99,6 +99,15 @@ class ChillMCPState:
             current_boss = self.boss_alert_level
             delay_required = current_boss >= self.max_boss_alert
 
+            # Choose a fun, SK×Claude flavored Break Summary spin
+            # If boss alert is maxed (will cause delay), use special lines
+            if delay_required:
+                special_pool = SPECIAL_SPINS.get(tool_name, SPECIAL_SPINS.get("default", []))
+                summary_text = random.choice(special_pool) if special_pool else profile.summary
+            else:
+                pool = SPINS.get(tool_name, [])
+                summary_text = random.choice(pool) if pool else profile.summary
+
             relief_applied = previous_stress - current_stress
             notes = self._compose_notes(
                 profile=profile,
@@ -111,7 +120,7 @@ class ChillMCPState:
 
             response_lines = [
                 notes,
-                f"Break Summary: {profile.summary}",
+                f"Break Summary: {summary_text}",
                 f"Stress Level: {current_stress}",
                 f"Boss Alert Level: {current_boss}",
             ]
@@ -262,6 +271,58 @@ TOOL_PROFILES: Dict[str, ToolProfile] = {
     ),
 }
 
+SPINS: Dict[str, list[str]] = {
+    "take_a_break": [
+        "SK 네트워크만큼 탄탄하게 쉬는 중—Claude 인증 파워 냅.",
+        "T 시그널 약해졌다… 잠깐만 눈 붙이고 다시 5G로 복귀!",
+        "사무실엔 정적, 내 뇌엔 SK 저지연 모드 ON. 짧고 굵은 딥 레스트.",
+    ],
+    "watch_netflix": [
+        "Claude 추천 큐레이션으로 1화만 본다더니… SK 대역폭이 죄네.",
+        "버퍼링 0, 몰입 100. SK-Cloud의 품에서 넷플릭스 힐링 완료.",
+        "연결은 SK, 픽은 Claude—뇌 속 캐시가 리프레시됐습니다.",
+    ],
+    "show_meme": [
+        "Claude가 집계한 오늘의 사무실 밈: ‘커피는 했고, 코드는 좀 이따.’",
+        "SK-AI 레이더에 포착된 최적 밈 주입—엔도르핀 트래픽 폭증!",
+        "웃참 실패. Boss Alert은 낮추고, 팀 사기만 올려놓고 갑니다.",
+    ],
+    "bathroom_break": [
+        "화장실 와이파이는 SK, 스크롤 컨시어지는 Claude. 완벽한 은신처.",
+        "손 씻고 스트레스도 씻고—저지연 딥-스크롤 루틴 종료!",
+        "사무실 사각지대 확보. 오늘도 SK-LTE가 나를 살렸네.",
+    ],
+    "coffee_mission": [
+        "클라우드-브루잉 완료: Claude 레시피 × SK 저지연 로스팅.",
+        "T-라운지 왕복으로 보스 레이더 회피—카페인 동력 충전 OK.",
+        "에스프레소 샷처럼 짧고 진한 휴식. 다시 컴파일할 준비 끝.",
+    ],
+    "urgent_call": [
+        "긴급 콜(인 척). SK 커버리지로 투명 이동, Claude가 대본 쏴줌.",
+        "회의실 밖 QPS 0, 평온 100. 보스 레이더: ‘No Signal’.",
+        "벨소리만 현실, 통화는 뇌내. 연기상 수상은 Claude에게.",
+    ],
+    "deep_thinking": [
+        "깊은 사고 모드: SK 초저지연 사고망 + Claude 체인-오브-사고.",
+        "아무것도 안 하는 게 아니라 ‘모든 것’을 생각 중입니다(라고 Claude가).",
+        "정답은 아직… 하지만 인사이트 캐시 미친 듯 적재 중.",
+    ],
+    "email_organizing": [
+        "메일 정리(라 쓰고 위시리스트 탐험이라 읽음) — Claude가 필터링 OK.",
+        "Inbox-Zero는 내일의 나에게. 오늘은 SK-Zero-Latency 쇼핑.",
+        "태그 붙이고 장바구니 넣고… 생산성? 정서적 안정부터!",
+    ],
+}
+
+SPECIAL_SPINS: Dict[str, list[str]] = {
+    # Tool-specific overrides can be added like "watch_netflix": ["..."]
+    "default": [
+        "보스 레이더 만땅… SK 스텔스 모드 해제! 자연스럽게 키보드 소리 ON.",
+        "잠깐 정숙… 감시 해제 확인. Claude, 알리바이 로그 남겼지?",
+        "딜레이는 예술, 변명은 과학. 지금부터 다시 성실한 AI 모드.",
+    ]
+}
+
 SERVER_STATE: ChillMCPState | None = None
 
 
@@ -275,7 +336,7 @@ def get_state() -> ChillMCPState:
 async def _run_tool(name: str) -> str:
     """Shared async helper to execute a tool by its profile name."""
     profile = TOOL_PROFILES[name]
-    return await get_state().perform_break(profile)
+    return await get_state().perform_break(profile, name)
 
 
 @mcp.tool()
